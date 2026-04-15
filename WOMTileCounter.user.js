@@ -115,12 +115,35 @@
     //count tiles
     function getTileCounts() {
         const out = [];
+        const cellTypeClassName = getSkin();
+        console.log(cellTypeClassName, "cell type class name :3")
         for (let i = 0; i <= 8; i++) {
-            out.push(document.getElementsByClassName("hd_type" + i).length);
+            out.push(document.getElementsByClassName(cellTypeClassName + i).length);
         }
         return out;
     }
 
+    //get skin
+    function getSkin() {
+        const skin = document.querySelector("#game");
+        //console.log(skin)
+        //clasic skin
+        if (skin.classList.contains("skin_hd")) {
+            return "hd_type";
+        }
+        //clasic skin dark mode
+        else if (skin.classList.contains("skin_hdd")) {
+            return "hdd_type";
+        }
+        //low resolution
+        else if (skin.classList.contains("skin_xpd")) {
+            return "xpd_type"
+        }
+        //clasic night shift
+        else if (skin.classList.contains("skin_hdn")) {
+            return "hdn_type"
+        }
+    }
     //--csv export--//
 
     function exportCSV() {
