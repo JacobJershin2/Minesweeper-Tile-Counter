@@ -78,7 +78,6 @@
         if (gameAlreadyLogged(url)) return false;
 
         const counts = getTileCounts();
-
         dataset[url] = {
             type: type,
             counts: counts
@@ -88,6 +87,103 @@
         updateGUI();
         return true;
     }
+
+    function logLostGame() {
+        const url = getCurrentURL();
+        const type = detectGameType();
+
+        if (!type) return false;
+        if (gameAlreadyLogged(url)) return false;
+
+        const areaBlock = document.getElementById("AreaBlock");
+        const out = [];
+        const counts = [];
+        const cellTypeClassName = getSkin();
+        const cellList = areaBlock.querySelectorAll(".cell");
+        const cols = parseInt(cellList[cellList.length - 1].getAttribute('data-x'));
+        const rows = parseInt(cellList[cellList.length - 1].getAttribute('data-y'));
+        //console.log(rows, cols);
+
+        for (let i = 0; i <= cellList.length - 1; i++) {
+
+            if ((cellList[i].className).includes(cellTypeClassName.slice(0, -5) + "_opened") || (cellList[i].className).includes(cellTypeClassName.slice(0, -5) + "_flag")) {
+                //if the cell we're looking at is a mine (type _flag, 10 or 11) then skip it otherwise check all the cells it touches for mines to figure out its real value
+
+                if ((cellList[i].className).includes(cellTypeClassName.slice(0, -5) + "_flag") || (cellList[i].className).includes(cellTypeClassName + "10") || (cellList[i].className).includes(cellTypeClassName + "11")) {
+                    //console.log("mine");
+
+                } else if ((cellList[i].className).includes(cellTypeClassName + "12")) {
+                    //incorrectly flagged tile (type 12), calculating cell value
+                    let cellX = parseInt(cellList[i].getAttribute('data-x'));
+                    let cellY = parseInt(cellList[i].getAttribute('data-Y'));
+                    out.push(findCellNumber(cellX, cellY, rows + 1, cols + 1, cellList, cellTypeClassName));
+
+                } else {
+                    //the tile is already open so just read what it is.
+                    out.push(parseNumber(cellList[i], cellTypeClassName));
+                }
+
+            } else {
+                //the cell is not already open so we need to figure out its value by hand
+                let cellX = parseInt(cellList[i].getAttribute('data-x'));
+                let cellY = parseInt(cellList[i].getAttribute('data-Y'));
+                out.push(findCellNumber(cellX, cellY, rows + 1, cols + 1, cellList, cellTypeClassName));
+
+            }
+        }
+
+        for (let i = 0; i <= 8; i++) {
+            counts.push(out.filter(element => element == i).length);
+        }
+        //console.log(counts);
+
+        dataset[url] = {
+            type: type,
+            counts: counts
+        };
+        //console.log(dataset);
+
+        saveDataset(dataset);
+        updateGUI();
+        return true;
+    }
+
+    function parseNumber(cell, cellTypeClassName) {
+        for (let num = 0; num <= 8; num++) {
+            if ((cell.className).includes(cellTypeClassName + num)) {
+                //console.log(num)
+                return num
+            }
+        }
+        console.log("something went wrong :(")
+    }
+
+    function findCellNumber(cellX, cellY, rows, cols, cellList, cellTypeClassName) {
+        const neighbors = [];
+
+        for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+                if (dr == 0 && dc == 0) continue;
+                const newRow = cellY + dr;
+                const newCol = cellX + dc;
+
+                if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols) {
+                    neighbors.push(newRow * cols + newCol);
+                }
+            }
+        }
+        //console.log(neighbors)
+        let cellValue = 0;
+        neighbors.forEach(neighborIndex => {
+            //console.log(neighborIndex)
+            if ((cellList[neighborIndex].className).includes(cellTypeClassName.slice(0, -5) + "_flag") || (cellList[neighborIndex].className).includes(cellTypeClassName + "10") || (cellList[neighborIndex].className).includes(cellTypeClassName + "11")) {
+                cellValue++;
+            }
+        })
+        //console.log(cellValue)
+        return cellValue
+    }
+
 
     //check if finished
     function isGameFinished() {
@@ -102,7 +198,9 @@
     function isGameLost() {
         const face = document.querySelector(".top-area-face");
         if (!face) return false;
-        return face.classList.contains("hd_top-area-face-lose");
+        return (face.classList.contains("hd_top-area-face-lose") || face.classList.contains("hdd_top-area-face-lose") || face.classList.contains("hdn_top-area-face-lose")
+                || face.classList.contains("xp_top-area-face-lose") || face.classList.contains("xpd_top-area-face-lose") || face.classList.contains("nnhdd_top-area-face-lose")
+                || face.classList.contains("rcd_top-area-face-lose") || face.classList.contains("ald_top-area-face-lose") || face.classList.contains("alrd_top-area-face-lose"));
     }
 
     //checks if a difficulty is selected
@@ -116,7 +214,6 @@
     function getTileCounts() {
         const out = [];
         const cellTypeClassName = getSkin();
-        console.log(cellTypeClassName, "cell type class name :3")
         for (let i = 0; i <= 8; i++) {
             out.push(document.getElementsByClassName(cellTypeClassName + i).length);
         }
@@ -126,23 +223,16 @@
     //get skin
     function getSkin() {
         const skin = document.querySelector("#game");
-        //console.log(skin)
-        //clasic skin
-        if (skin.classList.contains("skin_hd")) {
-            return "hd_type";
-        }
-        //clasic skin dark mode
-        else if (skin.classList.contains("skin_hdd")) {
-            return "hdd_type";
-        }
-        //low resolution
-        else if (skin.classList.contains("skin_xpd")) {
-            return "xpd_type"
-        }
-        //clasic night shift
-        else if (skin.classList.contains("skin_hdn")) {
-            return "hdn_type"
-        }
+        if (skin.classList.contains("skin_hd")) return "hd_type";
+        else if (skin.classList.contains("skin_hdd")) return "hdd_type";
+        else if (skin.classList.contains("skin_xpd")) return "xpd_type"
+        else if (skin.classList.contains("skin_xp")) return "xp_type"
+        else if (skin.classList.contains("skin_hdn")) return "hdn_type"
+        else if (skin.classList.contains("skin_nnhdd")) return "nnhdd_type"
+        else if (skin.classList.contains("skin_rcd")) return "rcd_type"
+        else if (skin.classList.contains("skin_ald")) return "ald_type"
+        else if (skin.classList.contains("skin_alrd")) return "alrd_type"
+
     }
     //--csv export--//
 
@@ -428,11 +518,17 @@
     //try automatically logging
     function tryAutoLog() {
         const url = getCurrentURL();
-        if (gameAlreadyLogged(url)) return;
-        if (isGameLost()) return;
-        if (!isGameFinished()) return;
         const face = document.querySelector(".top-area-face");
         const activeDifficulty = document.querySelector(".level-select-link.active span");
+
+        //console.log("test", gameAlreadyLogged(url), isGameLost());
+        if (gameAlreadyLogged(url)) return;
+        if (isGameLost()) {
+            //console.log("game lost and not logged");
+            logLostGame();
+            return;
+        };
+        if (!isGameFinished()) return;
         if (!face || !activeDifficulty) return;
         logGame();
     }
